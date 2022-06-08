@@ -30,6 +30,9 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager {
         NiftyConnectPassCardType cardType;
         uint256 mintTimestamp;
         uint256 expireTimestamp;
+
+        uint256 previousTokenId;
+        uint256 nextTokenId;
     }
 
     uint256 constant public UINT256_MAXIMUM_VALUE = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
@@ -53,11 +56,7 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager {
 
     mapping(uint256 => NiftyConnectPassCardAttribution) public attributionHub;
 
-    mapping(address => uint256[]) private userToSortedBlackCardMap;
-    mapping(address => uint256[]) private userToSortedPlatinumCardMap;
-    mapping(address => uint256[]) private userToSortedGoldCardMap;
-    mapping(address => uint256[]) private userToSortedNormalCardMap;
-    mapping(address => uint256[]) private userToSortedEarlyBirdCardMap;
+    mapping(NiftyConnectPassCardType => mapping(address => uint256)) public userToLongestValidityPeriodMap;
 
     uint256 public tokenIdIdx = 1;
 
@@ -84,9 +83,11 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager {
         attributionHub[tokenIdIdx] = NiftyConnectPassCardAttribution({
             cardType:           NiftyConnectPassCardType.Black,
             mintTimestamp:      block.timestamp,
-            expireTimestamp:    UINT256_MAXIMUM_VALUE
+            expireTimestamp:    UINT256_MAXIMUM_VALUE,
+            previousTokenId:    0,
+            nextTokenId:        0
         });
-        afterTransfer(address(0x0), recipient, tokenIdIdx);
+        updateRecipientValidityPeriodMap(recipient, tokenIdIdx);
         tokenIdIdx++;
         return true;
     }
@@ -112,9 +113,11 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager {
         attributionHub[tokenIdIdx] = NiftyConnectPassCardAttribution({
             cardType:           NiftyConnectPassCardType.Gold,
             mintTimestamp:      block.timestamp,
-            expireTimestamp:    block.timestamp+expireTime
+            expireTimestamp:    block.timestamp+expireTime,
+            previousTokenId:    0,
+            nextTokenId:        0
         });
-        afterTransfer(address(0x0), recipient, tokenIdIdx);
+        updateRecipientValidityPeriodMap(recipient, tokenIdIdx);
         tokenIdIdx++;
         return true;
     }
@@ -140,9 +143,11 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager {
         attributionHub[tokenIdIdx] = NiftyConnectPassCardAttribution({
             cardType:           NiftyConnectPassCardType.Normal,
             mintTimestamp:      block.timestamp,
-            expireTimestamp:    block.timestamp+expireTime
+            expireTimestamp:    block.timestamp+expireTime,
+            previousTokenId:    0,
+            nextTokenId:        0
         });
-        afterTransfer(address(0x0), recipient, tokenIdIdx);
+        updateRecipientValidityPeriodMap(recipient, tokenIdIdx);
         tokenIdIdx++;
         return true;
     }
@@ -157,9 +162,11 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager {
         attributionHub[tokenIdIdx] = NiftyConnectPassCardAttribution({
             cardType:           NiftyConnectPassCardType.EarlyBird,
             mintTimestamp:      block.timestamp,
-            expireTimestamp:    UINT256_MAXIMUM_VALUE
+            expireTimestamp:    UINT256_MAXIMUM_VALUE,
+            previousTokenId:    0,
+            nextTokenId:        0
         });
-        afterTransfer(address(0x0), recipient, tokenIdIdx);
+        updateRecipientValidityPeriodMap(recipient, tokenIdIdx);
         tokenIdIdx++;
         return true;
     }
@@ -205,11 +212,83 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager {
         afterTransfer(from, to, tokenId);
     }
 
-    function afterTransfer(address from, address to, uint256 tokenId) internal {
+    function updateRecipientValidityPeriodMap(address recipient, uint256 tokenId) internal {
+        NiftyConnectPassCardAttribution storage attr = attributionHub[tokenId];
+        mapping(address => uint256) storage longestValidityPeriodBlackCardMap = userToLongestValidityPeriodMap[attr.cardType];
+        uint256 tokenIdWithlongestValidityPeriod = longestValidityPeriodBlackCardMap[recipient];
+        NiftyConnectPassCardAttribution storage attrOfTokenIdWithlongestValidityPeriod = attributionHub[tokenIdWithlongestValidityPeriod];
 
+        if (tokenIdWithlongestValidityPeriod == 0) { // priviously there is no tokenId with the same card type
+            longestValidityPeriodBlackCardMap[recipient] = tokenId;
+            return;
+        } else if (tokenIdWithlongestValidityPeriod != 0 && attrOfTokenIdWithlongestValidityPeriod.expireTimestamp <= attr.expireTimestamp) {
+            longestValidityPeriodBlackCardMap[recipient] = tokenId;
+            attr.previousTokenId = tokenIdWithlongestValidityPeriod;
+            attrOfTokenIdWithlongestValidityPeriod.nextTokenId = tokenId;
+            return;
+        } else {
+            uint256 iterateTokenId = tokenIdWithlongestValidityPeriod;
+            for(;;) {
+                NiftyConnectPassCardAttribution storage tempAttr = attributionHub[iterateTokenId];
+                if (tempAttr.expireTimestamp <= attr.expireTimestamp) {
+                    attr.previousTokenId = iterateTokenId;
+                    attr.nextTokenId = tempAttr.nextTokenId;
+                    tempAttr.nextTokenId = tokenId;
+                    if (tempAttr.nextTokenId != 0) {
+                        NiftyConnectPassCardAttribution storage tempNextAttr = attributionHub[tempAttr.nextTokenId];
+                        tempNextAttr.previousTokenId = tokenId;
+                    }
+                    return;
+                } else {
+                    if (tempAttr.previousTokenId == 0) {
+                        tempAttr.previousTokenId = tokenId;
+                        attr.nextTokenId = iterateTokenId;
+                        return;
+                    }
+                    iterateTokenId = tempAttr.previousTokenId;
+                }
+            }
+        }
+    }
+
+    function updateFromValidityPeriodMap(address from, uint256 tokenId) internal {
+        NiftyConnectPassCardAttribution storage attr = attributionHub[tokenId];
+        mapping(address => uint256) storage longestValidityPeriodBlackCardMap = userToLongestValidityPeriodMap[attr.cardType];
+        uint256 tokenIdWithlongestValidityPeriod = longestValidityPeriodBlackCardMap[from];
+
+        if (attr.previousTokenId != 0 && attr.nextTokenId != 0) {
+            NiftyConnectPassCardAttribution storage previousAttr = attributionHub[attr.previousTokenId];
+            NiftyConnectPassCardAttribution storage nextAttr = attributionHub[attr.nextTokenId];
+            previousAttr.nextTokenId = attr.nextTokenId;
+            nextAttr.previousTokenId = attr.previousTokenId;
+        } else if (attr.previousTokenId == 0 && attr.nextTokenId != 0) {
+            NiftyConnectPassCardAttribution storage nextAttr = attributionHub[attr.nextTokenId];
+            nextAttr.previousTokenId = attr.previousTokenId;
+        } else if (attr.previousTokenId != 0 && attr.nextTokenId == 0) {
+            NiftyConnectPassCardAttribution storage previousAttr = attributionHub[attr.previousTokenId];
+            previousAttr.nextTokenId = attr.nextTokenId;
+            longestValidityPeriodBlackCardMap[from] = attr.previousTokenId;
+        } else {
+            longestValidityPeriodBlackCardMap[from] = 0;
+        }
+    }
+
+    function afterTransfer(address from, address to, uint256 tokenId) internal {
+        updateFromValidityPeriodMap(from, tokenId);
+        updateRecipientValidityPeriodMap(to, tokenId);
     }
 
     function calculateFee(address seller) external view returns (uint256 feeRate) {
+        mapping(address => uint256) storage longestValidityPeriodBlackCardMap = userToLongestValidityPeriodMap[NiftyConnectPassCardType.Black];
+        NiftyConnectPassCardAttribution memory attrBlackCard = attributionHub[longestValidityPeriodBlackCardMap[seller]];
+        if (attrBlackCard.expireTimestamp >= block.timestamp) {
+            return 0;
+        }
+        mapping(address => uint256) storage longestValidityPeriodPlatinumCardMap = userToLongestValidityPeriodMap[NiftyConnectPassCardType.Platinum];
+        NiftyConnectPassCardAttribution memory attrPlatinumCard = attributionHub[longestValidityPeriodPlatinumCardMap[seller]];
+        if (attrPlatinumCard.expireTimestamp >= block.timestamp) {
+            return 20; //TODO update by governance
+        }
         return 0;
     }
 
