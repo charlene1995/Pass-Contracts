@@ -44,6 +44,6 @@
     "y18n": ">=3.2.2",
     "@openzeppelin/test-helpers": "^0.5.15",
     "@openzeppelin/contracts": "4.6.0",
-    "keccak256": "1.0.6"
+    "@divergencetech/ethier": "v0.27.0"
   }
 }
