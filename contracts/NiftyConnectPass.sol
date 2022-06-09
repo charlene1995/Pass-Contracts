@@ -7,8 +7,9 @@ import "@divergencetech/ethier/contracts/crypto/SignatureChecker.sol";
 import "@divergencetech/ethier/contracts/crypto/SignerManager.sol";
 
 import "./IFeeCalculator.sol";
+import "./Governable.sol";
 
-contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager {
+contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager, Governable {
     using SafeERC20 for IERC20;
     using SignatureChecker for EnumerableSet.AddressSet;
 
@@ -38,12 +39,19 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager {
     uint256 constant public UINT256_MAXIMUM_VALUE = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
     uint256 constant public TOTAL_BLACK_CARD_AMOUNT = 100;
     uint256 constant public TOTAL_PLATINUM_CARD_AMOUNT = 1000;
+    uint256 public constant MAXIMUM_FEE_RATE = 500;
 
     uint256 constant public ONE_MONTH = 30*86400;
     uint256 constant public ONE_SEASON = 3*ONE_MONTH;
     uint256 constant public ONE_YEAR = 12*ONE_MONTH;
 
     string public baseURI;
+
+    uint256 public blackCardFeeRate = 0;
+    uint256 public platinumCardFeeRate = 20;
+    uint256 public goldCardFeeRate = 0;
+    uint256 public normalCardFeeRate = 35;
+    uint256 public defaultFeeRate = 200;
 
     uint256 public restGoldCardMintAmount = 10000;
     uint256 public goldMonthCardPrice = 15e16; // 0.15 ETH
@@ -87,7 +95,7 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager {
             previousTokenId:    0,
             nextTokenId:        0
         });
-        updateRecipientValidityPeriodMap(recipient, tokenIdIdx);
+        updateValidityPeriodLinkForReceiver(recipient, tokenIdIdx);
         tokenIdIdx++;
         return true;
     }
@@ -117,7 +125,7 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager {
             previousTokenId:    0,
             nextTokenId:        0
         });
-        updateRecipientValidityPeriodMap(recipient, tokenIdIdx);
+        updateValidityPeriodLinkForReceiver(recipient, tokenIdIdx);
         tokenIdIdx++;
         return true;
     }
@@ -147,7 +155,7 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager {
             previousTokenId:    0,
             nextTokenId:        0
         });
-        updateRecipientValidityPeriodMap(recipient, tokenIdIdx);
+        updateValidityPeriodLinkForReceiver(recipient, tokenIdIdx);
         tokenIdIdx++;
         return true;
     }
@@ -166,7 +174,7 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager {
             previousTokenId:    0,
             nextTokenId:        0
         });
-        updateRecipientValidityPeriodMap(recipient, tokenIdIdx);
+        updateValidityPeriodLinkForReceiver(recipient, tokenIdIdx);
         tokenIdIdx++;
         return true;
     }
@@ -212,7 +220,7 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager {
         afterTransfer(from, to, tokenId);
     }
 
-    function updateRecipientValidityPeriodMap(address recipient, uint256 tokenId) internal {
+    function updateValidityPeriodLinkForReceiver(address recipient, uint256 tokenId) internal {
         NiftyConnectPassCardAttribution storage attr = attributionHub[tokenId];
         mapping(address => uint256) storage longestValidityPeriodBlackCardMap = userToLongestValidityPeriodMap[attr.cardType];
         uint256 tokenIdWithlongestValidityPeriod = longestValidityPeriodBlackCardMap[recipient];
@@ -251,7 +259,7 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager {
         }
     }
 
-    function updateFromValidityPeriodMap(address from, uint256 tokenId) internal {
+    function updateValidityPeriodLinkForIssuer(address from, uint256 tokenId) internal {
         NiftyConnectPassCardAttribution storage attr = attributionHub[tokenId];
         mapping(address => uint256) storage longestValidityPeriodBlackCardMap = userToLongestValidityPeriodMap[attr.cardType];
         uint256 tokenIdWithlongestValidityPeriod = longestValidityPeriodBlackCardMap[from];
@@ -274,22 +282,32 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager {
     }
 
     function afterTransfer(address from, address to, uint256 tokenId) internal {
-        updateFromValidityPeriodMap(from, tokenId);
-        updateRecipientValidityPeriodMap(to, tokenId);
+        updateValidityPeriodLinkForIssuer(from, tokenId);
+        updateValidityPeriodLinkForReceiver(to, tokenId);
     }
 
     function calculateFee(address seller) external view returns (uint256 feeRate) {
         mapping(address => uint256) storage longestValidityPeriodBlackCardMap = userToLongestValidityPeriodMap[NiftyConnectPassCardType.Black];
         NiftyConnectPassCardAttribution memory attrBlackCard = attributionHub[longestValidityPeriodBlackCardMap[seller]];
         if (attrBlackCard.expireTimestamp >= block.timestamp) {
-            return 0;
+            return blackCardFeeRate;
+        }
+        mapping(address => uint256) storage longestValidityPeriodGoldCardMap = userToLongestValidityPeriodMap[NiftyConnectPassCardType.Gold];
+        NiftyConnectPassCardAttribution memory attrGoldCard = attributionHub[longestValidityPeriodGoldCardMap[seller]];
+        if (attrGoldCard.expireTimestamp >= block.timestamp) {
+            return goldCardFeeRate;
         }
         mapping(address => uint256) storage longestValidityPeriodPlatinumCardMap = userToLongestValidityPeriodMap[NiftyConnectPassCardType.Platinum];
         NiftyConnectPassCardAttribution memory attrPlatinumCard = attributionHub[longestValidityPeriodPlatinumCardMap[seller]];
         if (attrPlatinumCard.expireTimestamp >= block.timestamp) {
-            return 20; //TODO update by governance
+            return platinumCardFeeRate;
         }
-        return 0;
+        mapping(address => uint256) storage longestValidityPeriodNormalCardMap = userToLongestValidityPeriodMap[NiftyConnectPassCardType.Normal];
+        NiftyConnectPassCardAttribution memory attrNormalCard = attributionHub[longestValidityPeriodNormalCardMap[seller]];
+        if (attrNormalCard.expireTimestamp >= block.timestamp) {
+            return normalCardFeeRate;
+        }
+        return defaultFeeRate;
     }
 
     function redeem(address payable recipient, IERC20 token) onlyOwner external returns(bool) {
@@ -302,4 +320,30 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager {
         }
         return true;
     }
+
+    function changeBlackCardFeeRate(uint256 newBlackFeeRate) public onlyGovernor {
+        require(newBlackFeeRate <= MAXIMUM_FEE_RATE, "invalid new fee share");
+        blackCardFeeRate = newBlackFeeRate;
+    }
+
+    function changePlatinumCardFeeRate(uint256 newPlatinumFeeRate) public onlyGovernor {
+        require(newPlatinumFeeRate <= MAXIMUM_FEE_RATE, "invalid new fee share");
+        platinumCardFeeRate = newPlatinumFeeRate;
+    }
+
+    function changeGoldCardFeeRate(uint256 newGoldFeeRate) public onlyGovernor {
+        require(newGoldFeeRate <= MAXIMUM_FEE_RATE, "invalid new fee share");
+        goldCardFeeRate = newGoldFeeRate;
+    }
+
+    function changeNormalCardFeeRate(uint256 newNormalFeeRate) public onlyGovernor {
+        require(newNormalFeeRate <= MAXIMUM_FEE_RATE, "invalid new fee share");
+        normalCardFeeRate = newNormalFeeRate;
+    }
+
+    function changeDefaultFeeRate(uint256 newDefaultFeeRate) public onlyGovernor {
+        require(newDefaultFeeRate <= MAXIMUM_FEE_RATE, "invalid new fee share");
+        defaultFeeRate = newDefaultFeeRate;
+    }
+
 }
