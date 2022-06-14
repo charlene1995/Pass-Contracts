@@ -2,6 +2,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+//import "@openzeppelin/contracts/token/common/ERC2981.sol";
 
 import "@divergencetech/ethier/contracts/crypto/SignatureChecker.sol";
 import "@divergencetech/ethier/contracts/crypto/SignerManager.sol";
@@ -69,6 +70,9 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager, Governable {
     uint256 public tokenIdIdx = 1;
 
     mapping(bytes32 => bool) public usedApproveMessages;
+
+    event ValidityPeriodLinkForIssuer(address issuer, uint256 currTokenId, uint256 expireTime, uint256 preTokenId, uint256 nextTokenId);
+    event ValidityPeriodLinkForReceiver(address recipient, uint256 currTokenId, uint256 expireTime, uint256 preTokenId, uint256 nextTokenId);
 
     constructor(
         string memory _name,
@@ -228,12 +232,10 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager, Governable {
 
         if (tokenIdWithlongestValidityPeriod == 0) { // priviously there is no tokenId with the same card type
             longestValidityPeriodBlackCardMap[recipient] = tokenId;
-            return;
         } else if (tokenIdWithlongestValidityPeriod != 0 && attrOfTokenIdWithlongestValidityPeriod.expireTimestamp <= attr.expireTimestamp) {
             longestValidityPeriodBlackCardMap[recipient] = tokenId;
             attr.previousTokenId = tokenIdWithlongestValidityPeriod;
             attrOfTokenIdWithlongestValidityPeriod.nextTokenId = tokenId;
-            return;
         } else {
             uint256 iterateTokenId = tokenIdWithlongestValidityPeriod;
             for(;;) {
@@ -241,22 +243,23 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager, Governable {
                 if (tempAttr.expireTimestamp <= attr.expireTimestamp) {
                     attr.previousTokenId = iterateTokenId;
                     attr.nextTokenId = tempAttr.nextTokenId;
-                    tempAttr.nextTokenId = tokenId;
                     if (tempAttr.nextTokenId != 0) {
                         NiftyConnectPassCardAttribution storage tempNextAttr = attributionHub[tempAttr.nextTokenId];
                         tempNextAttr.previousTokenId = tokenId;
                     }
-                    return;
+                    tempAttr.nextTokenId = tokenId;
+                    break;
                 } else {
                     if (tempAttr.previousTokenId == 0) {
                         tempAttr.previousTokenId = tokenId;
                         attr.nextTokenId = iterateTokenId;
-                        return;
+                        break;
                     }
                     iterateTokenId = tempAttr.previousTokenId;
                 }
             }
         }
+        emit ValidityPeriodLinkForReceiver(recipient, tokenId, attr.expireTimestamp, attr.previousTokenId, attr.nextTokenId);
     }
 
     function updateValidityPeriodLinkForIssuer(address from, uint256 tokenId) internal {
@@ -279,6 +282,9 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager, Governable {
         } else {
             longestValidityPeriodBlackCardMap[from] = 0;
         }
+        emit ValidityPeriodLinkForIssuer(from, tokenId, attr.expireTimestamp, attr.previousTokenId, attr.nextTokenId);
+        attr.previousTokenId = 0;
+        attr.nextTokenId = 0;
     }
 
     function afterTransfer(address from, address to, uint256 tokenId) internal {
