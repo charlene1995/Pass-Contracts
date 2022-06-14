@@ -184,7 +184,7 @@ contract NiftyConnectPass is ERC721, ERC2981, IFeeCalculator, SignerManager, Gov
     }
 
     function signaturePayload(address to, NiftyConnectPassCardType cardType, bytes32 nonce)
-        internal pure returns (bytes memory) {
+        public pure returns (bytes memory) {
         return abi.encodePacked(to, cardType, nonce);
     }
 

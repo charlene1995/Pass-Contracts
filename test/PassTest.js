@@ -15,7 +15,7 @@ const EarlyBird = "4";
 
 const month = 0;
 const season = 1;
-const yaer = 2;
+const year = 2;
 
 contract('NiftyConnectPass Contract', (accounts) => {
     it('Test Query Initial Status', async () => {
@@ -27,7 +27,7 @@ contract('NiftyConnectPass Contract', (accounts) => {
         const name = await niftyConnectPassInst.name();
         assert.equal(name, "Nifty Connect Pass", "wrong name");
     });
-    it('Test Mint', async () => {
+    it('Test Mint Gold Card', async () => {
         const niftyConnectPassInst = await NiftyConnectPass.deployed();
         const owner = accounts[0];
         const player0 = accounts[1];
@@ -99,11 +99,11 @@ contract('NiftyConnectPass Contract', (accounts) => {
         // tokenIds of player2: 4->8
 
         attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("1"));
-        assert.equal(attrTemp["3"].toString(), "0", "Nifty Connect Pass", "wrong name");
+        assert.equal(attrTemp["3"].toString(), "0", "wrong previous tokenId");
         assert.equal(attrTemp["4"].toString(), "3", "Nifty Connect Pass", "wrong name");
 
         attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("2"));
-        assert.equal(attrTemp["3"].toString(), "0", "Nifty Connect Pass", "wrong name");
+        assert.equal(attrTemp["3"].toString(), "0", "wrong previous tokenId");
         assert.equal(attrTemp["4"].toString(), "6", "Nifty Connect Pass", "wrong name");
 
         attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("3"));
@@ -111,7 +111,7 @@ contract('NiftyConnectPass Contract', (accounts) => {
         assert.equal(attrTemp["4"].toString(), "5", "Nifty Connect Pass", "wrong name");
 
         attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("4"));
-        assert.equal(attrTemp["3"].toString(), "0", "Nifty Connect Pass", "wrong name");
+        assert.equal(attrTemp["3"].toString(), "0", "wrong previous tokenId");
         assert.equal(attrTemp["4"].toString(), "8", "Nifty Connect Pass", "wrong name");
 
         attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("5"));
@@ -120,15 +120,15 @@ contract('NiftyConnectPass Contract', (accounts) => {
 
         attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("6"));
         assert.equal(attrTemp["3"].toString(), "2", "Nifty Connect Pass", "wrong name");
-        assert.equal(attrTemp["4"].toString(), "0", "Nifty Connect Pass", "wrong name");
+        assert.equal(attrTemp["4"].toString(), "0", "wrong next tokenId");
 
         attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("7"));
         assert.equal(attrTemp["3"].toString(), "5", "Nifty Connect Pass", "wrong name");
-        assert.equal(attrTemp["4"].toString(), "0", "Nifty Connect Pass", "wrong name");
+        assert.equal(attrTemp["4"].toString(), "0", "wrong next tokenId");
 
         attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("8"));
         assert.equal(attrTemp["3"].toString(), "4", "Nifty Connect Pass", "wrong name");
-        assert.equal(attrTemp["4"].toString(), "0", "Nifty Connect Pass", "wrong name");
+        assert.equal(attrTemp["4"].toString(), "0", "wrong next tokenId");
 
         const transferTx = await niftyConnectPassInst.transferFrom(player0, player1, web3.utils.toBN("3"), {from: player0});
         truffleAssert.eventEmitted(transferTx, "ValidityPeriodLinkForIssuer",(ev) => {
@@ -143,11 +143,11 @@ contract('NiftyConnectPass Contract', (accounts) => {
         // tokenIds of player2: 4->8
 
         attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("1"));
-        assert.equal(attrTemp["3"].toString(), "0", "Nifty Connect Pass", "wrong name");
+        assert.equal(attrTemp["3"].toString(), "0", "wrong previous tokenId");
         assert.equal(attrTemp["4"].toString(), "5", "Nifty Connect Pass", "wrong name");
 
         attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("2"));
-        assert.equal(attrTemp["3"].toString(), "0", "Nifty Connect Pass", "wrong name");
+        assert.equal(attrTemp["3"].toString(), "0", "wrong previous tokenId");
         assert.equal(attrTemp["4"].toString(), "3", "Nifty Connect Pass", "wrong name");
 
         attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("3"));
@@ -155,7 +155,7 @@ contract('NiftyConnectPass Contract', (accounts) => {
         assert.equal(attrTemp["4"].toString(), "6", "Nifty Connect Pass", "wrong name");
 
         attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("4"));
-        assert.equal(attrTemp["3"].toString(), "0", "Nifty Connect Pass", "wrong name");
+        assert.equal(attrTemp["3"].toString(), "0", "wrong previous tokenId");
         assert.equal(attrTemp["4"].toString(), "8", "Nifty Connect Pass", "wrong name");
 
         attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("5"));
@@ -164,15 +164,15 @@ contract('NiftyConnectPass Contract', (accounts) => {
 
         attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("6"));
         assert.equal(attrTemp["3"].toString(), "3", "Nifty Connect Pass", "wrong name");
-        assert.equal(attrTemp["4"].toString(), "0", "Nifty Connect Pass", "wrong name");
+        assert.equal(attrTemp["4"].toString(), "0", "wrong next tokenId");
 
         attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("7"));
         assert.equal(attrTemp["3"].toString(), "5", "Nifty Connect Pass", "wrong name");
-        assert.equal(attrTemp["4"].toString(), "0", "Nifty Connect Pass", "wrong name");
+        assert.equal(attrTemp["4"].toString(), "0", "wrong next tokenId");
 
         attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("8"));
         assert.equal(attrTemp["3"].toString(), "4", "Nifty Connect Pass", "wrong name");
-        assert.equal(attrTemp["4"].toString(), "0", "Nifty Connect Pass", "wrong name");
+        assert.equal(attrTemp["4"].toString(), "0", "wrong next tokenId");
 
         const transferTx1 = await niftyConnectPassInst.safeTransferFrom(player0, player2, web3.utils.toBN("1"), {from: player0});
         truffleAssert.eventEmitted(transferTx1, "ValidityPeriodLinkForIssuer",(ev) => {
@@ -199,7 +199,87 @@ contract('NiftyConnectPass Contract', (accounts) => {
         // tokenIds of player2: 1->4->7->8
 
         attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("5"));
-        assert.equal(attrTemp["3"].toString(), "0", "Nifty Connect Pass", "wrong name");
-        assert.equal(attrTemp["4"].toString(), "0", "Nifty Connect Pass", "wrong name");
+        assert.equal(attrTemp["3"].toString(), "0", "wrong previous tokenId");
+        assert.equal(attrTemp["4"].toString(), "0", "wrong next tokenId");
+    });
+    it('Test Mint Normal Card', async () => {
+        const niftyConnectPassInst = await NiftyConnectPass.deployed();
+        const owner = accounts[0];
+        const player0 = accounts[1];
+        const player1 = accounts[2];
+        const player2 = accounts[3];
+        const player3 = accounts[4];
+
+        // tokenId 9
+        await niftyConnectPassInst.mintNormalTo(year, player0, {value: 100e15, from: player0})
+        // tokenId 10
+        await niftyConnectPassInst.mintNormalTo(month, player0, {value: 15e15, from: player0})
+        // tokenId 11
+        await niftyConnectPassInst.mintNormalTo(season, player0, {value: 35e15, from: player0})
+
+        await time.increase(1);
+        // tokenId 12
+        await niftyConnectPassInst.mintNormalTo(year, player1, {value: 100e15, from: player1})
+        // tokenId 13
+        await niftyConnectPassInst.mintNormalTo(month, player1, {value: 15e15, from: player1})
+        // tokenId 14
+        await niftyConnectPassInst.mintNormalTo(season, player1, {value: 35e15, from: player1})
+
+        await time.increase(1);
+        // tokenId 15
+        await niftyConnectPassInst.mintNormalTo(year, player2, {value: 100e15, from: player2})
+        // tokenId 16
+        await niftyConnectPassInst.mintNormalTo(month, player2, {value: 15e15, from: player2})
+        // tokenId 17
+        await niftyConnectPassInst.mintNormalTo(season, player2, {value: 35e15, from: player2})
+
+        let attrTemp;
+
+
+        // Normal card
+        // player0 10->11->9
+        // player1 13->14->12
+        // player2 16->17->15
+
+        attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("9"));
+        assert.equal(attrTemp["3"].toString(), "11", "wrong previous tokenId");
+        assert.equal(attrTemp["4"].toString(), "0", "wrong next tokenId");
+
+        attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("10"));
+        assert.equal(attrTemp["3"].toString(), "0", "wrong previous tokenId");
+        assert.equal(attrTemp["4"].toString(), "11", "wrong next tokenId");
+
+        attrTemp = await niftyConnectPassInst.attributionHub(web3.utils.toBN("11"));
+        assert.equal(attrTemp["3"].toString(), "10", "wrong previous tokenId");
+        assert.equal(attrTemp["4"].toString(), "9", "wrong next tokenId");
+
+        const longestTokenId0 = await niftyConnectPassInst.userToLongestValidityPeriodMap(Normal, player0);
+        assert.equal(longestTokenId0.toString(), "9", "wrong tokenId");
+
+        const longestTokenId1 = await niftyConnectPassInst.userToLongestValidityPeriodMap(Normal, player1);
+        assert.equal(longestTokenId1.toString(), "12", "wrong tokenId");
+
+        const longestTokenId2 = await niftyConnectPassInst.userToLongestValidityPeriodMap(Normal, player2);
+        assert.equal(longestTokenId2.toString(), "15", "wrong tokenId");
+    });
+
+    it('Test Mint Other Card', async () => {
+        const niftyConnectPassInst = await NiftyConnectPass.deployed();
+        const owner = accounts[0];
+        const player0 = accounts[1];
+        const player1 = accounts[2];
+        const player2 = accounts[3];
+        const player3 = accounts[4];
+
+        await niftyConnectPassInst.addSigner(owner, {from: owner});
+
+        let salt = "0x"+crypto.randomBytes(32).toString("hex");
+        const signaturePayload = await niftyConnectPassInst.signaturePayload(player0, Black, salt);
+        const signature = await web3.eth.sign(signaturePayload, owner);
+
+        console.log("signaturePayload: "+signaturePayload.toString());
+        console.log("signature: "+signature.toString());
+
+        await niftyConnectPassInst.mintBlackOrPlatinumTo(player0, Black, salt, signature, {from: player0});
     });
 });
