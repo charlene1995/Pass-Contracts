@@ -2,7 +2,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-//import "@openzeppelin/contracts/token/common/ERC2981.sol";
+import "@openzeppelin/contracts/token/common/ERC2981.sol";
 
 import "@divergencetech/ethier/contracts/crypto/SignatureChecker.sol";
 import "@divergencetech/ethier/contracts/crypto/SignerManager.sol";
@@ -10,7 +10,7 @@ import "@divergencetech/ethier/contracts/crypto/SignerManager.sol";
 import "./IFeeCalculator.sol";
 import "./Governable.sol";
 
-contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager, Governable {
+contract NiftyConnectPass is ERC721, ERC2981, IFeeCalculator, SignerManager, Governable {
     using SafeERC20 for IERC20;
     using SignatureChecker for EnumerableSet.AddressSet;
 
@@ -350,6 +350,18 @@ contract NiftyConnectPass is ERC721, IFeeCalculator, SignerManager, Governable {
     function changeDefaultFeeRate(uint256 newDefaultFeeRate) public onlyGovernor {
         require(newDefaultFeeRate <= MAXIMUM_FEE_RATE, "invalid new fee share");
         defaultFeeRate = newDefaultFeeRate;
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC2981) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+
+    function setDefaultRoyalty(address receiver, uint96 feeNumerator) external onlyGovernor {
+        super._setDefaultRoyalty(receiver, feeNumerator);
+    }
+
+    function setTokenRoyalty(uint256 tokenId, address receiver, uint96 feeNumerator) external onlyGovernor {
+        super._setTokenRoyalty(tokenId, receiver, feeNumerator);
     }
 
 }
