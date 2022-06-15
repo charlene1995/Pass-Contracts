@@ -66,6 +66,7 @@ contract NiftyConnectPass is ERC721, ERC2981, IFeeCalculator, SignerManager, Gov
     mapping(uint256 => NiftyConnectPassCardAttribution) public attributionHub;
 
     mapping(NiftyConnectPassCardType => mapping(address => uint256)) public userToLongestValidityPeriodMap;
+    mapping(NiftyConnectPassCardType => uint256) public cardTypeToTotalSupply;
 
     uint256 public tokenIdIdx = 1;
 
@@ -82,24 +83,29 @@ contract NiftyConnectPass is ERC721, ERC2981, IFeeCalculator, SignerManager, Gov
         baseURI = _baseURI;
     }
 
-    function mintBlackOrPlatinumTo(address recipient, NiftyConnectPassCardType cardType, bytes32 nonce, bytes calldata sig) external returns(bool) {
-        require(
-            cardType==NiftyConnectPassCardType.Black ||
-            cardType==NiftyConnectPassCardType.Platinum, "invalid card type");
+    function mintBlackOrPlatinumTo(address recipient, NiftyConnectPassCardType cardType, bytes32 salt, bytes calldata sig) external returns(bool) {
+        if (cardType==NiftyConnectPassCardType.Black) {
+            require(cardTypeToTotalSupply[cardType]<TOTAL_BLACK_CARD_AMOUNT, "can't mint more black card");
+        } else if(cardType==NiftyConnectPassCardType.Platinum) {
+            require(cardTypeToTotalSupply[cardType]<TOTAL_PLATINUM_CARD_AMOUNT, "can't mint more platinum card");
+        } else {
+            revert("invalid card type");
+        }
         signers.requireValidSignature(
-            signaturePayload(recipient, cardType, nonce),
+            signaturePayload(recipient, cardType, salt),
             sig,
             usedApproveMessages);
 
         _safeMint(recipient, tokenIdIdx);
         attributionHub[tokenIdIdx] = NiftyConnectPassCardAttribution({
-            cardType:           NiftyConnectPassCardType.Black,
+            cardType:           cardType,
             mintTimestamp:      block.timestamp,
             expireTimestamp:    UINT256_MAXIMUM_VALUE,
             previousTokenId:    0,
             nextTokenId:        0
         });
         updateValidityPeriodLinkForReceiver(recipient, tokenIdIdx);
+        cardTypeToTotalSupply[cardType] = cardTypeToTotalSupply[cardType] + 1;
         tokenIdIdx++;
         return true;
     }
@@ -130,6 +136,7 @@ contract NiftyConnectPass is ERC721, ERC2981, IFeeCalculator, SignerManager, Gov
             nextTokenId:        0
         });
         updateValidityPeriodLinkForReceiver(recipient, tokenIdIdx);
+        cardTypeToTotalSupply[NiftyConnectPassCardType.Gold] = cardTypeToTotalSupply[NiftyConnectPassCardType.Gold] + 1;
         tokenIdIdx++;
         return true;
     }
@@ -160,13 +167,14 @@ contract NiftyConnectPass is ERC721, ERC2981, IFeeCalculator, SignerManager, Gov
             nextTokenId:        0
         });
         updateValidityPeriodLinkForReceiver(recipient, tokenIdIdx);
+        cardTypeToTotalSupply[NiftyConnectPassCardType.Normal] = cardTypeToTotalSupply[NiftyConnectPassCardType.Normal] + 1;
         tokenIdIdx++;
         return true;
     }
 
-    function mintEarlyBirdTo(address recipient, bytes32 nonce, bytes calldata sig) external payable returns(bool) {
+    function mintEarlyBirdTo(address recipient, bytes32 salt, bytes calldata sig) external payable returns(bool) {
         signers.requireValidSignature(
-            signaturePayload(recipient, NiftyConnectPassCardType.EarlyBird, nonce),
+            signaturePayload(recipient, NiftyConnectPassCardType.EarlyBird, salt),
             sig,
             usedApproveMessages);
 
@@ -179,18 +187,19 @@ contract NiftyConnectPass is ERC721, ERC2981, IFeeCalculator, SignerManager, Gov
             nextTokenId:        0
         });
         updateValidityPeriodLinkForReceiver(recipient, tokenIdIdx);
+        cardTypeToTotalSupply[NiftyConnectPassCardType.EarlyBird] = cardTypeToTotalSupply[NiftyConnectPassCardType.EarlyBird] + 1;
         tokenIdIdx++;
         return true;
     }
 
-    function signaturePayload(address to, NiftyConnectPassCardType cardType, bytes32 nonce)
+    function signaturePayload(address to, NiftyConnectPassCardType cardType, bytes32 salt)
         public pure returns (bytes memory) {
-        return abi.encodePacked(to, cardType, nonce);
+        return abi.encodePacked(to, cardType, salt);
     }
 
-    function alreadyMinted(address recipient, NiftyConnectPassCardType cardType, bytes32 nonce)
+    function alreadyMinted(address recipient, NiftyConnectPassCardType cardType, bytes32 salt)
         external view returns (bool) {
-        return usedApproveMessages[SignatureChecker.generateMessage(signaturePayload(recipient, cardType, nonce))];
+        return usedApproveMessages[SignatureChecker.generateMessage(signaturePayload(recipient, cardType, salt))];
     }
 
     function transferFrom(
@@ -359,9 +368,4 @@ contract NiftyConnectPass is ERC721, ERC2981, IFeeCalculator, SignerManager, Gov
     function setDefaultRoyalty(address receiver, uint96 feeNumerator) external onlyGovernor {
         super._setDefaultRoyalty(receiver, feeNumerator);
     }
-
-    function setTokenRoyalty(uint256 tokenId, address receiver, uint96 feeNumerator) external onlyGovernor {
-        super._setTokenRoyalty(tokenId, receiver, feeNumerator);
-    }
-
 }

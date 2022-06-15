@@ -23,7 +23,7 @@ contract Governable {
      * @dev Throws if called by any account other than the governor.
      */
     modifier onlyGovernor() {
-        require(msg.sender == governor);
+        require(msg.sender == governor, "Governable: caller is not the governor");
         _;
     }
 

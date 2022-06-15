@@ -205,10 +205,10 @@ contract('NiftyConnectPass Contract', (accounts) => {
     it('Test Mint Normal Card', async () => {
         const niftyConnectPassInst = await NiftyConnectPass.deployed();
         const owner = accounts[0];
-        const player0 = accounts[1];
-        const player1 = accounts[2];
-        const player2 = accounts[3];
-        const player3 = accounts[4];
+        const player0 = accounts[5];
+        const player1 = accounts[6];
+        const player2 = accounts[7];
+        const player3 = accounts[8];
 
         // tokenId 9
         await niftyConnectPassInst.mintNormalTo(year, player0, {value: 100e15, from: player0})
@@ -262,7 +262,6 @@ contract('NiftyConnectPass Contract', (accounts) => {
         const longestTokenId2 = await niftyConnectPassInst.userToLongestValidityPeriodMap(Normal, player2);
         assert.equal(longestTokenId2.toString(), "15", "wrong tokenId");
     });
-
     it('Test Mint Other Card', async () => {
         const niftyConnectPassInst = await NiftyConnectPass.deployed();
         const owner = accounts[0];
@@ -270,16 +269,113 @@ contract('NiftyConnectPass Contract', (accounts) => {
         const player1 = accounts[2];
         const player2 = accounts[3];
         const player3 = accounts[4];
+        const player4 = accounts[5];
+        const player7 = accounts[8];
+        const player8 = accounts[9];
 
         await niftyConnectPassInst.addSigner(owner, {from: owner});
 
         let salt = "0x"+crypto.randomBytes(32).toString("hex");
-        const signaturePayload = await niftyConnectPassInst.signaturePayload(player0, Black, salt);
-        const signature = await web3.eth.sign(signaturePayload, owner);
+        let signPayload = await niftyConnectPassInst.signaturePayload(player7, Black, salt);
+        let signature = await web3.eth.sign(signPayload, owner);
+        signature = signature.substr(0, 130) + (signature.substr(130) == "00" ? "1b" : "1c");
 
-        console.log("signaturePayload: "+signaturePayload.toString());
-        console.log("signature: "+signature.toString());
+        let alreadyMinted = await niftyConnectPassInst.alreadyMinted(player7, Black, salt);
+        assert.equal(alreadyMinted.toString(), "false", "wrong alreadyMinted");
 
-        await niftyConnectPassInst.mintBlackOrPlatinumTo(player0, Black, salt, signature, {from: player0});
+        await niftyConnectPassInst.mintBlackOrPlatinumTo(player7, Black, salt, signature, {from: player7});
+
+        alreadyMinted = await niftyConnectPassInst.alreadyMinted(player7, Black, salt);
+        assert.equal(alreadyMinted.toString(), "true", "wrong alreadyMinted");
+
+        salt = "0x"+crypto.randomBytes(32).toString("hex");
+        signPayload = await niftyConnectPassInst.signaturePayload(player0, EarlyBird, salt);
+        signature = await web3.eth.sign(signPayload, owner);
+        signature = signature.substr(0, 130) + (signature.substr(130) == "00" ? "1b" : "1c");
+        await niftyConnectPassInst.mintEarlyBirdTo(player0, salt, signature, {from: player0});
+
+        salt = "0x"+crypto.randomBytes(32).toString("hex");
+        signPayload = await niftyConnectPassInst.signaturePayload(player8, Platinum, salt);
+        signature = await web3.eth.sign(signPayload, owner);
+        signature = signature.substr(0, 130) + (signature.substr(130) == "00" ? "1b" : "1c");
+        await niftyConnectPassInst.mintBlackOrPlatinumTo(player8, Platinum, salt, signature, {from: player8});
+
+        salt = "0x"+crypto.randomBytes(32).toString("hex");
+        signPayload = await niftyConnectPassInst.signaturePayload(player4, EarlyBird, salt);
+        signature = await web3.eth.sign(signPayload, owner);
+        signature = signature.substr(0, 130) + (signature.substr(130) == "00" ? "1b" : "1c");
+        await niftyConnectPassInst.mintEarlyBirdTo(player4, salt, signature, {from: player4});
+    });
+    it('Test redeem', async () => {
+        const niftyConnectPassInst = await NiftyConnectPass.deployed();
+        const owner = accounts[0];
+        const player0 = accounts[1];
+
+        try {
+            await niftyConnectPassInst.redeem(player0, "0x0000000000000000000000000000000000000000", {from: player0});
+            assert.fail();
+        } catch (error) {
+            assert.ok(error.toString().includes("Ownable: caller is not the owner"));
+        }
+        await niftyConnectPassInst.redeem(owner, "0x0000000000000000000000000000000000000000", {from: owner});
+    });
+    it('Test calculateFee', async () => {
+        const niftyConnectPassInst = await NiftyConnectPass.deployed();
+        const owner = accounts[0];
+        const governor = accounts[0];
+        const player0 = accounts[1];
+        const player1 = accounts[2];
+        const player2 = accounts[3];
+        const player3 = accounts[4];
+        const player4 = accounts[5];
+        const player5 = accounts[6];
+        const player6 = accounts[7];
+        const player7 = accounts[8];
+        const player8 = accounts[9];
+
+        let feeRatePlayer0 = await niftyConnectPassInst.calculateFee(player0);
+        assert.equal(feeRatePlayer0.toString(), "0", "wrong fee");
+
+        let feeRatePlayer1 = await niftyConnectPassInst.calculateFee(player1);
+        assert.equal(feeRatePlayer1.toString(), "0", "wrong fee");
+
+        let feeRatePlayer2 = await niftyConnectPassInst.calculateFee(player2);
+        assert.equal(feeRatePlayer2.toString(), "0", "wrong fee");
+
+        let feeRatePlayer3 = await niftyConnectPassInst.calculateFee(player3);
+        assert.equal(feeRatePlayer3.toString(), "200", "wrong normal fee");
+
+        let feeRatePlayer4 = await niftyConnectPassInst.calculateFee(player4);
+        assert.equal(feeRatePlayer4.toString(), "35", "wrong normal fee");
+
+        let feeRatePlayer5 = await niftyConnectPassInst.calculateFee(player5);
+        assert.equal(feeRatePlayer5.toString(), "35", "wrong normal fee");
+
+        let feeRatePlayer6 = await niftyConnectPassInst.calculateFee(player6);
+        assert.equal(feeRatePlayer6.toString(), "35", "wrong normal fee");
+
+        let feeRatePlayer7 = await niftyConnectPassInst.calculateFee(player7);
+        assert.equal(feeRatePlayer7.toString(), "0", "wrong normal fee");
+
+        let feeRatePlayer8 = await niftyConnectPassInst.calculateFee(player8);
+        assert.equal(feeRatePlayer8.toString(), "20", "wrong normal fee");
+
+        try {
+            await niftyConnectPassInst.changeDefaultFeeRate(300, {from: player0});
+            assert.fail();
+        } catch (error) {
+            assert.ok(error.toString().includes("Governable: caller is not the governor"));
+        }
+        await niftyConnectPassInst.changeDefaultFeeRate(300, {from: governor});
+        feeRatePlayer3 = await niftyConnectPassInst.calculateFee(player3);
+        assert.equal(feeRatePlayer3.toString(), "300", "wrong default fee");
+
+        await niftyConnectPassInst.changeNormalCardFeeRate(50, {from: governor});
+        feeRatePlayer4 = await niftyConnectPassInst.calculateFee(player4);
+        assert.equal(feeRatePlayer4.toString(), "50", "wrong normal fee");
+
+        await niftyConnectPassInst.changePlatinumCardFeeRate(25, {from: governor});
+        feeRatePlayer8 = await niftyConnectPassInst.calculateFee(player8);
+        assert.equal(feeRatePlayer8.toString(), "25", "wrong normal fee");
     });
 });
