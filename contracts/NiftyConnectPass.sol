@@ -126,6 +126,7 @@ contract NiftyConnectPass is ERC721, ERC2981, IFeeCalculator, SignerManager, Gov
             revert("invalid period");
         }
         require(msg.value == price, "price mismatch");
+        require(cardTypeToTotalSupply[NiftyConnectPassCardType.Gold] < restGoldCardMintAmount, "can't mint more gold card");
 
         _safeMint(recipient, tokenIdIdx);
         attributionHub[tokenIdIdx] = NiftyConnectPassCardAttribution({
