@@ -77,10 +77,8 @@ contract NiftyConnectPass is ERC721, ERC2981, IFeeCalculator, SignerManager, Gov
 
     constructor(
         string memory _name,
-        string memory _symbol,
-        string memory _baseURI
+        string memory _symbol
     ) public ERC721(_name, _symbol) {
-        baseURI = _baseURI;
     }
 
     function mintBlackOrPlatinumTo(address recipient, NiftyConnectPassCardType cardType, bytes32 salt, bytes calldata sig) external returns(bool) {
@@ -173,7 +171,7 @@ contract NiftyConnectPass is ERC721, ERC2981, IFeeCalculator, SignerManager, Gov
         return true;
     }
 
-    function mintEarlyBirdTo(address recipient, bytes32 salt, bytes calldata sig) external payable returns(bool) {
+    function mintEarlyBirdTo(address recipient, bytes32 salt, bytes calldata sig) external returns(bool) {
         signers.requireValidSignature(
             signaturePayload(recipient, NiftyConnectPassCardType.EarlyBird, salt),
             sig,
@@ -368,5 +366,13 @@ contract NiftyConnectPass is ERC721, ERC2981, IFeeCalculator, SignerManager, Gov
 
     function setDefaultRoyalty(address receiver, uint96 feeNumerator) external onlyGovernor {
         super._setDefaultRoyalty(receiver, feeNumerator);
+    }
+
+    function setBaseURI(string memory _baseURI) external onlyOwner {
+        baseURI = _baseURI;
+    }
+
+    function _baseURI() internal view override returns (string memory) {
+        return baseURI;
     }
 }
